@@ -34,6 +34,8 @@ tokens :-
   pi                                                        { \s -> TPi }
   opaque                                                    { \s -> TOpaque }
   if                                                        { \s -> TIf }
+  for                                                       { \s -> TFor }
+  in                                                        { \s -> TIn }
   \=\=                                                      { \s -> TEq }
   barrier                                                   { \s -> TBarrier }
   gate                                                      { \s -> TGate }
@@ -46,14 +48,15 @@ tokens :-
   \-\>                                                      { \s -> TArrow }
   \(                                                        { \s -> TLParen }
   \)                                                        { \s -> TRParen }
-  \<                                                        { \s -> TLAngle }
-  \>                                                        { \s -> TRAngle }
+  \<                                                        { \s -> TLAngle}
+  \>                                                        { \s -> TRAngle}
   \{                                                        { \s -> TLBrace }
   \}                                                        { \s -> TRBrace }
   \[                                                        { \s -> TLBracket }
   \]                                                        { \s -> TRBracket }
   \;                                                        { \s -> TSemicolon }
   \,                                                        { \s -> TComma }
+  \.\.                                                      { \s -> TDDot }
   \"[^\"]*\"                                                { \s -> TString (filter (/='"') s) }
   [a-z]($digit|$alpha)*                                     { \s -> TID s }
   ($digit+\.$digit*|$digit*\.$digit+)([eE][\-\+]?$digit+)?  { \s -> TReal (read s) }
@@ -82,6 +85,8 @@ data Token =
   | TPi
   | TOpaque
   | TIf
+  | TFor
+  | TIn
   | TEq
   | TBarrier
   | TGate
@@ -103,6 +108,7 @@ data Token =
   | TRBracket
   | TSemicolon
   | TComma
+  | TDDot
   -- identifiers & literals
   | TString String
   | TID String

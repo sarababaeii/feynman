@@ -30,6 +30,7 @@ data Stmt =
   | DecStmt Dec
   | QStmt QExp
   | IfStmt ID Int QExp
+  -- | ForStmt ID Int Int [QExp]
   deriving (Eq,Show)
 
 data Dec =
@@ -42,6 +43,11 @@ data Dec =
   | UIntDec { id :: ID,
               cparams :: [ID],
               qparams :: [ID] }
+  | CircFamDec { id :: ID,
+                 param :: ID,
+                 cparams :: [ID],
+                 qparams :: [ID],
+                 gates :: [UExp] }
   deriving (Eq,Show)
 
 data QExp =
@@ -54,6 +60,7 @@ data UExp =
     UGate Exp Exp Exp Arg
   | CXGate Arg Arg
   | CallGate ID [Exp] [Arg]
+  -- | CallCircFamInstance ID Exp [Exp] [Arg]
   | BarrierGate [Arg]
   deriving (Eq,Show)
 
@@ -110,6 +117,7 @@ prettyPrintStmt stmt = case stmt of
   DecStmt dec      -> prettyPrintDec dec
   QStmt qexp       -> [prettyPrintQExp qexp ++ ";"]
   IfStmt v i qexp  -> ["if(" ++ v ++ "==" ++ show i ++ ")" ++ prettyPrintQExp qexp ++ ";"]
+  -- ForStmt i low up qexp -> ["for" ++ i ++ "in[" ++ show low ++ ".." ++ show up ++ "]" ++ prettyPrintQExp qexp ++ ";"]
 
 prettyPrintDec :: Dec -> [String]
 prettyPrintDec dec = case dec of

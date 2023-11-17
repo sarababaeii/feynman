@@ -26,24 +26,29 @@ import Feynman.Frontend.OpenQASM.Syntax
   pi      { TPi }
   opaque  { TOpaque }
   if      { TIf }
-  '='     { TEq }
+  for     { TFor }
+  in      { TIn }
+  "=="    { TEq }
   barrier { TBarrier }
   gate    { TGate }
   qreg    { TQreg }
   creg    { TCreg }
   measure { TMeasure }
-  '>'     { TArrow }
+  "->"    { TArrow }
   reset   { TReset }
   U       { TU }
   CX      { TCX }
   '('     { TLParen }
   ')'     { TRParen }
+  '<'     { TLAngle }
+  '>'     { TRAngle }
   '{'     { TLBrace }
   '}'     { TRBrace }
   '['     { TLBracket }
   ']'     { TRBracket }
   ';'     { TSemicolon }
   ','     { TComma }
+  ".."    { TDDot }
   str     { TString $$ }
   id      { TID   $$ }
   float   { TReal $$ }
@@ -59,17 +64,23 @@ statements : statement             { [$1] }
 statement : include str ';'               { IncStmt $2 }
           | declaration                   { DecStmt $1 }
           | qop ';'                       { QStmt $1 }
-          | if '(' id '=' nat ')' qop ';' { IfStmt $3 $5 $7 }
+          | if '(' id "==" nat ')' qop ';'{ IfStmt $3 $5 $7 }
+        --   | for id in '[' exp ".." exp ']' '{' qops '}' {ForStmt $2 $5 $7 $10 }
 
 declaration : qreg id '[' nat ']' ';'                { VarDec $2 (Qreg $4) }
             | creg id '[' nat ']' ';'                { VarDec $2 (Creg $4) }
             | gate id ids '{' uops0 '}'              { GateDec $2 [] $3 $5 }
             | gate id '(' ids0 ')' ids '{' uops0 '}' { GateDec $2 $4 $6 $8 }
-            | opaque id ids                          { UIntDec $2 [] $3 }
-            | opaque id '(' ids0 ')' ids             { UIntDec $2 $4 $6 }
+            | opaque id ids  ';'                     { UIntDec $2 [] $3 }
+            | opaque id '(' ids0 ')' ids ';'         { UIntDec $2 $4 $6 }
+            | gate id '<' id '>' '(' ids0 ')' ids '{' uops '}' { CircFamDec $2 $4 $7 $9 $11 }
+            | gate id '<' id '>' ids '{' uops '}' { CircFamDec $2 $4 [] $9 $11 }
+
+-- qops : qop ';'            { [$1] }
+--      | qops qop ';'       { $1 ++ [$2] }
 
 qop : uop                 { GateExp $1 }
-    | measure arg '>' arg { MeasureExp $2 $4 }
+    | measure arg "->" arg{ MeasureExp $2 $4 }
     | reset arg           { ResetExp $2 }
 
 uops0 : {- empty -} { [] }
@@ -83,6 +94,7 @@ uop : U '(' exp ',' exp ',' exp ')' arg { UGate $3 $5 $7 $9 }
     | barrier args                      { BarrierGate $2 }
     | id args                           { CallGate $1 [] $2 }
     | id '(' exps0 ')' args             { CallGate $1 $3 $5 }
+    -- | id '<' exp '>' '(' exps0 ')' args { CallCircFamInstance $1 $3 $6 $8 }
 
 args : arg          { [$1] }
      | args ',' arg { $1 ++ [$3] }
