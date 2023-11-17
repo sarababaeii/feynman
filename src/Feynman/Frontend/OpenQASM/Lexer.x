@@ -46,6 +46,8 @@ tokens :-
   \-\>                                                      { \s -> TArrow }
   \(                                                        { \s -> TLParen }
   \)                                                        { \s -> TRParen }
+  \<                                                        { \s -> TLAngle }
+  \>                                                        { \s -> TRAngle }
   \{                                                        { \s -> TLBrace }
   \}                                                        { \s -> TRBrace }
   \[                                                        { \s -> TLBracket }
@@ -93,6 +95,8 @@ data Token =
   | TArrow
   | TLParen
   | TRParen
+  | TLAngle
+  | TRAngle
   | TLBrace
   | TRBrace
   | TLBracket
