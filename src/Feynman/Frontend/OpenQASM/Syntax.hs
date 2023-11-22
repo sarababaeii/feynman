@@ -30,24 +30,24 @@ data Stmt =
   | DecStmt Dec
   | QStmt QExp
   | IfStmt ID Int QExp
-  -- | ForStmt ID Int Int [QExp]
+  | ForStmt ID Exp Exp [QExp]
   deriving (Eq,Show)
 
 data Dec =
-    VarDec  { id :: ID,
-              typ :: Typ }
-  | GateDec { id :: ID,
-              cparams :: [ID],
-              qparams :: [ID],
-              gates :: [UExp] }
-  | UIntDec { id :: ID,
-              cparams :: [ID],
-              qparams :: [ID] }
-  | CircFamDec { id :: ID,
-                 param :: ID,
-                 cparams :: [ID],
-                 qparams :: [ID],
-                 gates :: [UExp] }
+    VarDec    { id :: ID,
+                typ :: Typ }
+  | GateDec   { id :: ID,
+                cparams :: [ID],
+                qparams :: [ID],
+                gates :: [UExp] }
+  | UIntDec   { id :: ID,
+                cparams :: [ID],
+                qparams :: [ID] }
+  | CircFamDec{ id :: ID,
+                param :: ID,
+                cparams :: [ID],
+                qparams :: [ID],
+                gates :: [UExp] }
   deriving (Eq,Show)
 
 data QExp =
@@ -60,7 +60,7 @@ data UExp =
     UGate Exp Exp Exp Arg
   | CXGate Arg Arg
   | CallGate ID [Exp] [Arg]
-  -- | CallCircFamInstance ID Exp [Exp] [Arg]
+  | CallCircFamInstance ID Exp [Exp] [Arg]
   | BarrierGate [Arg]
   deriving (Eq,Show)
 
@@ -245,6 +245,8 @@ checkStmt ctx stmt = case stmt of
       _      -> Left $ "Variable " ++ v ++ " in if statement has wrong type"
     checkQExp ctx qexp
     return ctx
+  ForStmt _ _ _ _ -> return ctx
+    -- Should be implemented
 
 -- Note that we don't require that arguments in the body of a dec are not offsets
 checkDec :: Ctx -> Dec -> Either String Ctx
@@ -255,6 +257,8 @@ checkDec ctx dec = case dec of
     let ctx' = foldr (\v -> Map.insert v (Qreg 1)) (foldr (\v -> Map.insert v Numeric) ctx cp) qp
     forM_ b (checkUExp ctx')
     return $ Map.insert v (Circ (length cp) (length qp)) ctx
+  CircFamDec _ _ _ _ _ -> return ctx
+    -- Should be implemented
 
 checkQExp :: Ctx -> QExp -> Either String ()
 checkQExp ctx qexp = case qexp of
@@ -308,6 +312,9 @@ checkUExp ctx uexp = case uexp of
         then return ()
         else Left $ "Wrong number of arguments to " ++ v
       _ -> Left $ "Variable " ++ v ++ " is not gate type"
+  CallCircFamInstance _ _ _ _     -> do
+    return ()
+    -- Should be implemented
   BarrierGate args     -> do
     let checkArg arg = do
           argTy <- argTyp ctx arg

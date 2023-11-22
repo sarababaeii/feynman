@@ -61,23 +61,26 @@ program : qasm float ';' statements { QASM $2 $4 }
 statements : statement             { [$1] }
            | statements statement  { $1 ++ [$2] }
 
-statement : include str ';'               { IncStmt $2 }
-          | declaration                   { DecStmt $1 }
-          | qop ';'                       { QStmt $1 }
-          | if '(' id "==" nat ')' qop ';'{ IfStmt $3 $5 $7 }
-        --   | for id in '[' exp ".." exp ']' '{' qops '}' {ForStmt $2 $5 $7 $10 }
+statement : include str ';'                              { IncStmt $2 }
+          | declaration                                  { DecStmt $1 }
+          | qop ';'                                      { QStmt $1 }
+          | if '(' id "==" nat ')' qop ';'               { IfStmt $3 $5 $7 }
+          | for id in '[' exp ".." exp ']' '{' qops0 '}' {ForStmt $2 $5 $7 $10 }
 
-declaration : qreg id '[' nat ']' ';'                { VarDec $2 (Qreg $4) }
-            | creg id '[' nat ']' ';'                { VarDec $2 (Creg $4) }
-            | gate id ids '{' uops0 '}'              { GateDec $2 [] $3 $5 }
-            | gate id '(' ids0 ')' ids '{' uops0 '}' { GateDec $2 $4 $6 $8 }
-            | opaque id ids  ';'                     { UIntDec $2 [] $3 }
-            | opaque id '(' ids0 ')' ids ';'         { UIntDec $2 $4 $6 }
+declaration : qreg id '[' nat ']' ';'                          { VarDec $2 (Qreg $4) }
+            | creg id '[' nat ']' ';'                          { VarDec $2 (Creg $4) }
+            | gate id ids '{' uops0 '}'                        { GateDec $2 [] $3 $5 }
+            | gate id '(' ids0 ')' ids '{' uops0 '}'           { GateDec $2 $4 $6 $8 }
+            | opaque id ids  ';'                               { UIntDec $2 [] $3 }
+            | opaque id '(' ids0 ')' ids ';'                   { UIntDec $2 $4 $6 }
             | gate id '<' id '>' '(' ids0 ')' ids '{' uops '}' { CircFamDec $2 $4 $7 $9 $11 }
-            | gate id '<' id '>' ids '{' uops '}' { CircFamDec $2 $4 [] $9 $11 }
+            | gate id '<' id '>' ids '{' uops '}'              { CircFamDec $2 $4 [] $6 $8 }
 
--- qops : qop ';'            { [$1] }
---      | qops qop ';'       { $1 ++ [$2] }
+qops0 : {- empty -} { [] }
+      | qops        { $1 }
+
+qops : qop ';'            { [$1] }
+     | qops qop ';'       { $1 ++ [$2] }
 
 qop : uop                 { GateExp $1 }
     | measure arg "->" arg{ MeasureExp $2 $4 }
@@ -86,15 +89,16 @@ qop : uop                 { GateExp $1 }
 uops0 : {- empty -} { [] }
       | uops        { $1 }
 
-uops : uop ';'              { [$1] }
-     | uops uop ';'         { $1 ++ [$2] }
+uops : uop ';'            { [$1] }
+     | uops uop ';'       { $1 ++ [$2] }
 
 uop : U '(' exp ',' exp ',' exp ')' arg { UGate $3 $5 $7 $9 }
     | CX arg ',' arg                    { CXGate $2 $4 }
     | barrier args                      { BarrierGate $2 }
     | id args                           { CallGate $1 [] $2 }
     | id '(' exps0 ')' args             { CallGate $1 $3 $5 }
-    -- | id '<' exp '>' '(' exps0 ')' args { CallCircFamInstance $1 $3 $6 $8 }
+    | id '<' exp '>' '(' exps0 ')' args { CallCircFamInstance $1 $3 $6 $8 }
+    | id '<' exp '>' args               { CallCircFamInstance $1 $3 [] $5 }
 
 args : arg          { [$1] }
      | args ',' arg { $1 ++ [$3] }
