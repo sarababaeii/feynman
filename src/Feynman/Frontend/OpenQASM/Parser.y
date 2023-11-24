@@ -61,11 +61,10 @@ program : qasm float ';' statements { QASM $2 $4 }
 statements : statement             { [$1] }
            | statements statement  { $1 ++ [$2] }
 
-statement : include str ';'                              { IncStmt $2 }
-          | declaration                                  { DecStmt $1 }
-          | qop ';'                                      { QStmt $1 }
-          | if '(' id "==" nat ')' qop ';'               { IfStmt $3 $5 $7 }
-          | for id in '[' exp ".." exp ']' '{' qops0 '}' {ForStmt $2 $5 $7 $10 }
+statement : include str ';'                { IncStmt $2 }
+          | declaration                    { DecStmt $1 }
+          | qop ';'                        { QStmt $1 }
+          | if '(' id "==" nat ')' qop ';' { IfStmt $3 $5 $7 }
 
 declaration : qreg id '[' nat ']' ';'                          { VarDec $2 (Qreg $4) }
             | creg id '[' nat ']' ';'                          { VarDec $2 (Creg $4) }
@@ -73,8 +72,8 @@ declaration : qreg id '[' nat ']' ';'                          { VarDec $2 (Qreg
             | gate id '(' ids0 ')' ids '{' uops0 '}'           { GateDec $2 $4 $6 $8 }
             | opaque id ids  ';'                               { UIntDec $2 [] $3 }
             | opaque id '(' ids0 ')' ids ';'                   { UIntDec $2 $4 $6 }
-            | gate id '<' id '>' '(' ids0 ')' ids '{' uops '}' { CircFamDec $2 $4 $7 $9 $11 }
-            | gate id '<' id '>' ids '{' uops '}'              { CircFamDec $2 $4 [] $6 $8 }
+            | gate id '<' id '>' '(' ids0 ')' ids '{' qops0 '}'{ CircFamDec $2 $4 $7 $9 $11 }
+            | gate id '<' id '>' ids '{' qops0 '}'             { CircFamDec $2 $4 [] $6 $8 }
 
 qops0 : {- empty -} { [] }
       | qops        { $1 }
@@ -82,9 +81,10 @@ qops0 : {- empty -} { [] }
 qops : qop ';'            { [$1] }
      | qops qop ';'       { $1 ++ [$2] }
 
-qop : uop                 { GateExp $1 }
-    | measure arg "->" arg{ MeasureExp $2 $4 }
-    | reset arg           { ResetExp $2 }
+qop : uop                                          { GateExp $1 }
+    | measure arg "->" arg                         { MeasureExp $2 $4 }
+    | reset arg                                    { ResetExp $2 }
+    | for id in '[' exp ".." exp ']' '{' qops0 '}' { ForExp $2 $5 $7 $10 }
 
 uops0 : {- empty -} { [] }
       | uops        { $1 }
@@ -105,6 +105,7 @@ args : arg          { [$1] }
 
 arg : id             { Var $1 }
     | id '[' nat ']' { Offset $1 $3 }
+--     | id '[' intexp ']' { Offset $1 $3}
 
 ids0 : {- empty -} { [] }
      | ids         { $1 }
@@ -122,10 +123,19 @@ exp : term         { $1 }
     | exp '+' term { BOpExp $1 PlusOp $3 }
     | exp '-' term { BOpExp $1 MinusOp $3 }
 
+-- intexp : intterm            { $1 }
+--        | intexp '+' intterm { BOpExp $1 PlusOp $3 }
+--        | intexp '-' intterm { BOpExp $1 MinusOp $3 }
+
 term : factor          { $1 }
      | term '*' factor { BOpExp $1 TimesOp $3 }
      | term '/' factor { BOpExp $1 DivOp $3 }
      | term '^' factor { BOpExp $1 PowOp $3 }
+
+-- intterm : intfactor             { $1 }
+--         | intterm '*' intfactor { BOpExp $1 TimesOp $3 }
+--      --    | intterm '/' intfactor { BOpExp $1 IntDivOp $3 }
+--         | intterm '^' intfactor { BOpExp $1 PowOp $3 }
 
 factor : float             { FloatExp $1 }
        | nat               { IntExp $1 }
@@ -134,6 +144,11 @@ factor : float             { FloatExp $1 }
        | '-' factor        { BOpExp (IntExp 0) MinusOp $2 }
        | unary '(' exp ')' { UOpExp $1 $3 }
        | '(' exp ')'       { $2 }
+
+-- intfactor : nat               { IntExp $1 }
+--           | id                { VarExp $1 }
+--           | '-' intfactor     { BOpExp (IntExp 0) MinusOp $2 }
+--           | '(' intexp ')'    { $2 }
 
 unary : sin  { SinOp }
       | cos  { CosOp }

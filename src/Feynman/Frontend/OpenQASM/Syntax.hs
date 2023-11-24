@@ -30,7 +30,6 @@ data Stmt =
   | DecStmt Dec
   | QStmt QExp
   | IfStmt ID Int QExp
-  | ForStmt ID Exp Exp [QExp]
   deriving (Eq,Show)
 
 data Dec =
@@ -47,13 +46,14 @@ data Dec =
                 param :: ID,
                 cparams :: [ID],
                 qparams :: [ID],
-                gates :: [UExp] }
+                expressions :: [QExp] }
   deriving (Eq,Show)
 
 data QExp =
     GateExp UExp
   | MeasureExp Arg Arg
   | ResetExp Arg
+  | ForExp ID Exp Exp [QExp]
   deriving (Eq,Show)
 
 data UExp =
@@ -71,6 +71,7 @@ data Exp =
   | VarExp ID
   | UOpExp UnOp Exp
   | BOpExp Exp BinOp Exp
+  -- | IntBOpExp IntExp BinOp IntExp
   deriving (Eq,Show)
 
 {- Expression evaluation -}
@@ -117,7 +118,6 @@ prettyPrintStmt stmt = case stmt of
   DecStmt dec      -> prettyPrintDec dec
   QStmt qexp       -> [prettyPrintQExp qexp ++ ";"]
   IfStmt v i qexp  -> ["if(" ++ v ++ "==" ++ show i ++ ")" ++ prettyPrintQExp qexp ++ ";"]
-  -- ForStmt i low up qexp -> ["for" ++ i ++ "in[" ++ show low ++ ".." ++ show up ++ "]" ++ prettyPrintQExp qexp ++ ";"]
 
 prettyPrintDec :: Dec -> [String]
 prettyPrintDec dec = case dec of
@@ -245,8 +245,6 @@ checkStmt ctx stmt = case stmt of
       _      -> Left $ "Variable " ++ v ++ " in if statement has wrong type"
     checkQExp ctx qexp
     return ctx
-  ForStmt _ _ _ _ -> return ctx
-    -- Should be implemented
 
 -- Note that we don't require that arguments in the body of a dec are not offsets
 checkDec :: Ctx -> Dec -> Either String Ctx
@@ -278,6 +276,8 @@ checkQExp ctx qexp = case qexp of
     case argTy of
       Qreg _ -> return ()
       _      -> Left $ "Argument " ++ show arg ++ " to reset has wrong type"
+  ForExp _ _ _ _ -> return ()
+    -- Should be implemented
 
 checkUExp :: Ctx -> UExp -> Either String ()
 checkUExp ctx uexp = case uexp of
