@@ -17,8 +17,8 @@ import Control.Monad
 import Debug.Trace
 
 {- Abstract syntax -}
-data Typ = Numeric | Creg Int | Qreg Int | Circ Int Int deriving (Eq,Show)
-data Arg = Var ID | Offset ID Int deriving (Eq,Show)
+data Typ = Numeric | Int | Creg Int | Qreg Int | Circ Int Int deriving (Eq,Show)
+data Arg = Var ID | Offset ID ExpInt deriving (Eq,Show)
 
 data UnOp  = SinOp | CosOp | TanOp | ExpOp | LnOp | SqrtOp deriving (Eq,Show)
 data BinOp = PlusOp | MinusOp | TimesOp | DivOp | PowOp deriving (Eq,Show)
@@ -53,7 +53,7 @@ data QExp =
     GateExp UExp
   | MeasureExp Arg Arg
   | ResetExp Arg
-  | ForExp ID Exp Exp [QExp]
+  | ForExp ExpInt ExpInt ExpInt [QExp]
   deriving (Eq,Show)
 
 data UExp =
@@ -71,7 +71,12 @@ data Exp =
   | VarExp ID
   | UOpExp UnOp Exp
   | BOpExp Exp BinOp Exp
-  -- | IntBOpExp IntExp BinOp IntExp
+  deriving (Eq,Show)
+
+data ExpInt =
+    IntValExp Int
+  | IntVarExp ID
+  | IntBOpExp ExpInt BinOp ExpInt
   deriving (Eq,Show)
 
 {- Expression evaluation -}
@@ -338,20 +343,20 @@ argTyp :: Ctx -> Arg -> Either String Typ
 argTyp ctx (Var v) = case Map.lookup v ctx of
   Nothing -> Left $ "No binding for " ++ v
   Just ty -> return ty
-argTyp ctx (Offset v i) = do
+argTyp ctx (Offset v _) = do
   baseTy <- argTyp ctx (Var v)
   case baseTy of
     Qreg j ->
-      if i >= 0 && i < j
-      then return $ Qreg 1
-      else Left $ "Index " ++ show i ++ " out of bounds"
+      return $ Qreg 1
+      -- if index >= 0 && index < j
+      -- then return $ Qreg 1
+      -- else Left $ "Index " ++ show index ++ " out of bounds"
     Creg j ->
-      if i >= 0 && i < j
-      then return $ Creg 1
-      else Left $ "Index " ++ show i ++ " out of bounds"
+      return $ Creg 1
+      -- if index >= 0 && index < j
+      -- then return $ Creg 1
+      -- else Left $ "Index " ++ show index ++ " out of bounds"
     _      -> Left $ "Variable " ++ v ++ " invalid for offset"
-     
-
 {- Transformations -}
 
 substUExp esub asub uexp = case uexp of
@@ -395,10 +400,10 @@ desugar symtab (QASM ver stmts) = QASM ver $ concatMap f stmts
           -- Can cause problems if not all argument registers have the same length
           CallGate v e xs  -> map (CallGate v e) $ transpose (map expand xs)
         expand arg = case arg of
-          Offset _ _ -> [arg]
+          Offset _ (IntValExp _) -> [arg]
           Var v      -> case symtab!v of
-            Qreg i -> map (Offset v) [0..i-1]
-            Creg i -> map (Offset v) [0..i-1]
+            Qreg i -> map (Offset v) [(IntValExp x) | x <- [0..i-1]]
+            Creg i -> map (Offset v) [(IntValExp x) | x <- [0..i-1]]
             _      -> [Var v]
 
 -- Inlines all local definitions & non-primitive operations
@@ -641,7 +646,8 @@ showStats qasm =
 regify :: ID -> Map ID Int -> ID -> Arg
 regify y subs x = case Map.lookup x subs of
   Nothing -> Var x
-  Just i  -> Offset y i
+  Just i  -> Offset y (IntValExp i)
+  -- Changed for var index
 
 isValidIDChar :: Char -> Bool
 isValidIDChar c = isAlpha c || isDigit c || c == '_'
